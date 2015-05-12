@@ -1,0 +1,63 @@
+---
+title: 'Statistical Inference Course Project, Part 1: Simulation'
+author: "Eric Weber"
+date: "May 11, 2015"
+output: pdf_document
+---
+The exponential distribution can be simulated with R, with rexp(n,$\lambda$) where lambda is the rate parameter. The mean of the exponential distribution is 1/$\lambda$ and the standard deviation is also 1/$\lambda$. In this report, I exmaine the distribution of averages of 40 numbers, sampled from an exponential distribution with $\lambda$=0.2.
+
+##Simulation
+First, consider one thousand simulated averages of 40 exponentials.
+```{r}
+set.seed(40)
+lambda <- 0.2
+numbersim <- 1000
+sample <- 40
+simulation <- matrix(rexp(numbersim*sample, rate=lambda), numbersim,sample)
+rowmean<- rowMeans(simulation)
+```
+##Distribution of Sample Means and Variance
+The distribution of sample means from the simulation is as below:
+```{r}
+hist(rowmean, breaks=50, prob=TRUE,
+     main="Distribution of averages from 40 samples,
+     drawn from an exponential distribution with lambda=0.2")
+lines(density(rowmean))
+abline(v=1/lambda, col="red")
+abline(v=mean(rowmean), col="black")
+xfit <- seq(min(rowmean), max(rowmean), length=100)
+yfit <- dnorm(xfit, mean=1/lambda, sd=(1/lambda/sqrt(sample)))
+lines(xfit, yfit, pch=22, col="red", lty=2)
+legend('topright', c("simulation", "theoretical"), lty=c(1,2), col=c("black", "red"))
+```
+
+The distribution of sample means is centered at 4.988627 and the theoretical mean of the distribution is 1/$\lambda$ = 5. The variance of the sample means is .6427627 and the theoretical variance of the distribution is 1/($\lambda$^2n) = (1/.04*40)=0.625.
+
+The Central Limit Theorem assures that the averages of samples follow a normal distribution. The first figure illustrates the density of averages from the histogram. Additionally, the normal density is plotted with theoretical mean and variance values. Another way to evaluate the normality is to use a q-q plot. The q-q plot (see Appendix Item 1) supports the conclusion of normality. 
+
+##Confidence Intervals
+In the last part of this assignment, I look at the confidence interval for $1/\lambda = \bar{X} \pm 1.96 \frac{S}{\sqrt{n}}$ to examine how well the confidence interval of the average of the sample mean captures the true $\lambda$.
+
+The 95% confidence intervals for the rate parameter ($\lambda$) to be estimated ($\hat{\lambda}$) are lower limit $\hat{\lambda}{low} = \hat{\lambda}(1 - \frac{1.96}{\sqrt{n}})$ and upper limit $\hat{\lambda}{upp} = \hat{\lambda}(1 + \frac{1.96}{\sqrt{n}})$. When  $\hat{\lambda}$ is around 5, the average of the sample mean falls within the confidence interval more than 95% of the time (see Appendix Item 2)
+
+##Appendix
+
+### Item 1: Q-Q Plot
+```{r}
+qqnorm(rowmean); qqline(rowmean)
+```
+
+###Item 2: Coverage
+```{r}
+lambda_values <- seq(4.5, 5.5, by=0.01)
+intervalcoverage<- sapply(lambda_values, function(returnlambda) {
+    mu_hat <- rowMeans(matrix(rexp(sample*numbersim, rate=0.2),
+                               numbersim, sample))
+    lower <- mu_hat - qnorm(0.975) * sqrt(1/lambda**2/sample)
+    upper <- mu_hat + qnorm(0.975) * sqrt(1/lambda**2/sample)
+    mean(lower < returnlambda & upper > returnlambda)
+})
+
+library(ggplot2)
+qplot(lambda_values, intervalcoverage)
+```

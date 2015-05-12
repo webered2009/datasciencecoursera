@@ -1,0 +1,72 @@
+---
+title: 'Statistical Inference Project Part 2: Analysis of Tooth Growth Data'
+author: "Eric Weber"
+date: "May 11, 2015"
+output: pdf_document
+---
+This report provides basic summary and exploratory data analysis of the ToothGrowth dataset located in the R datasets package. In this report, I explore the relationship between tooth length, supplement and dosage. I show that as dosage increases, tooth length increases across both supplement types. I also show that for two of the three levels of dose, the difference between the supplements is statistically significant. I close by identifying assumptions I made in working with the data. 
+
+##Summary Statistics
+The following code loads the dataset ToothGrowth and provides summary statistics of the data.
+```{r}
+library (datasets)
+data (ToothGrowth)
+summary (ToothGrowth)
+dim(ToothGrowth)
+names(ToothGrowth)
+```
+
+The basic summary statistics show the dataset consists of three variables (len, supp, dose) corresponding to length, supplement (VC or OJ) and dose of supplement. There are sixty observations on these three variables. 
+
+##Exploratory Data Analysis
+In the plot below (see appendix item 1), I explore the relationship between tooth length, type of supplement and dose of that supplement. The plot above shows that for both types of supplements, as the dose increases so does tooth length. There appear to be differences in tooth length for OJ and VC at the 0.5 and 1 dosage levels, but not at the dosage level of 2. 
+
+##Linear Model
+In the code that follows, I create a linear model of tooth length with dose and supplement as predictor variables to examine how the predictors might explain variance in tooth length. I also examine the significance of the predictors in the model.
+```{r}
+fit <- lm (len ~ dose + supp, data = ToothGrowth)
+summary (fit)
+```
+Based on the model above, the following interpretations can be made:
+
+First, the average length of tooth for is 9.2725 units without any supplements. Second, the coefficient of dose is 9.7636. This indicates that the length of tooth will increase by 9.7636 units with an increase in dose by 1mg with supplement type held constant. Third, the coefficient of suppVC is -3.7. This means that the increase in tooth length is 3.7 units less for the same dosage of VC as compared to OJ.
+
+##T-Tests
+In the T-Tests that follow, I split the data based on dose and examine tooth growth within each subset and examine differences between supplements for similar dosage levels. 
+
+```{r}
+dose1<-subset(ToothGrowth, dose== 0.5)
+dose2<-subset(ToothGrowth, dose==1.0)
+dose3<-subset(ToothGrowth, dose==2.0)
+
+test1 <- t.test (len ~ supp, paired = FALSE, var.equal = FALSE, data = dose1)
+test1$p.value
+
+test2<- t.test (len ~ supp, paired = FALSE, var.equal = FALSE, data = dose2)
+test2$p.value
+
+test3 <- t.test (len ~ supp, paired = FALSE, var.equal = FALSE, data = dose3)
+test3$p.value
+```
+The results show dosages of 0.5 and 1 have small p-values (0.006358 and 0.001038), particularly relative to the 2.0 dosage which has a p-value of 0.963851.
+
+Based on the data, we can conclude there is not a significant difference on tooth length between the two supplements when they are delivered at the 2.0 level. This conclusion was also evident in the earlier plot.
+
+Based on the data, we can conclude there is a significant difference on tooth length between the two supplements at both the 0.5 and 1 level.
+
+##Assumptions
+
+There were two main assumptions in these analyses. First, the sample was assumed to be essentially the same on other factors. For instance, size, age, living conditions were all implicitly assumed to be constant. Second, the samples were unpaired with unequal variances. 
+
+##Appendix
+
+###Item 1
+```{r}
+library (ggplot2)
+ggplot(data=ToothGrowth, aes(x=as.factor(dose), y=len, fill=supp)) +
+    geom_bar(stat="identity",) +
+    facet_grid(. ~ supp) +
+    xlab("Dose") +
+    ylab("Tooth Length") +
+    guides(fill=guide_legend(title="Supplement"))
+```
