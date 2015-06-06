@@ -1,57 +1,63 @@
 setwd("/Users/ericweber/GitHub/datasciencecoursera/DataScience3GetCleanData/courseproject")
 
-#Read in data and load datasets for cleaning
+#1 Read in data and load datasets for cleaning
 
-train = read.csv("UCI HAR Dataset/train/X_train.txt", sep ="", header = FALSE)
-train[,562] = read.csv("UCI HAR Dataset/train/Y_train.txt", sep ="", header = FALSE)
-train[,563] = read.csv("UCI HAR Dataset/train/subject_train.txt", sep ="", header = FALSE)
+basepath<- file.path("UCI HAR Dataset")
+files<- list.files(basepath, recursive = TRUE)
 
-test = read.csv("UCI HAR Dataset/test/X_test.txt", sep ="", header = FALSE)
-test[,562] = read.csv("UCI HAR Dataset/test/Y_test.txt", sep ="", header = FALSE)
-test[,563] = read.csv("UCI HAR Dataset/test/subject_test.txt", sep ="", header = FALSE)
+#train
+trainLabel<- read.table(file.path(basepath, "train", "Y_train.txt"), header = FALSE)
+trainData<- read.table(file.path(basepath, "train", "X_train.txt"), header = FALSE)
+trainSubject<- read.table(file.path(basepath, "train", "subject_train.txt"), header = FALSE)
+#test
+testSubject<- read.table(file.path(basepath, "test", "subject_test.txt"), header = FALSE)
+testData<- read.table(file.path(basepath, "test", "X_test.txt"), header = FALSE)
+testLabel<- read.table(file.path(basepath, "test", "Y_test.txt"), header = FALSE)
+#others
+features = read.table(file.path(basepath, "features.txt"), header = FALSE)
+activity = read.table(file.path(basepath, "activity_labels.txt"), header = FALSE)
 
-labels = read.csv("UCI HAR Dataset/activity_labels.txt", sep = "", header = FALSE)
+#Merge files
+mergedData<- rbind(trainData, testData)
+dim(mergedData)
+mergedLabel<- rbind(trainLabel,testLabel)
+dim(mergedLabel)
+mergedSubject<- rbind(trainSubject,testSubject)
+dim(mergedSubject)
 
-features = read.csv("UCI HAR Dataset/features.txt", sep = "", header = FALSE)
+#2 Extract measurements on the mean and median, clean up names
+dim(features)
+relevantMeasures<- grep("mean\\(\\)|std\\(\\)", features[,2])
+length(relevantMeasures)
+mergedData <- mergedData[,relevantMeasures]
+dim(mergedData)
+names(mergedData)<- gsub("\\(\\)","", features[relevantMeasures,2])
+names(mergedData)<- gsub("mean", "Mean", names(mergedData))
+names(mergedData)<- gsub("std", "Std", names(mergedData))
+names(mergedData)<- gsub("-", "", names(mergedData))
 
-## Adjust features so they fit with subsequent analysis
-features[,2] = gsub('-mean', 'Mean', features[,2])
-features[,2] = gsub('-std', 'Std', features[,2])
-features[,2] = gsub('-()', '', features[,2])
+#3 Use descriptive activity names to name activities in the dataset
+activity[,2]<- tolower(gsub("_","",activity[,2]))
+substr(activity[2, 2], 8, 8) <- toupper(substr(activity[2, 2], 8, 8))
+substr(activity[3, 2], 8, 8) <- toupper(substr(activity[3, 2], 8, 8))
+activityLabels<- activity[mergedLabel[,1],2]
+mergedLabel[,1]<- activityLabels
+names(mergedLabel)<- "activity"
 
-## Merge training and test sets to create one data set
-merged = rbind(train,test)
+#4 Label data set with descriptive activity names
+names(mergedSubject)<- "subject"
+allData<- cbind(mergedSubject,mergedLabel,mergedData)
+dim(allData)
+names(allData)<-gsub("^t", "time", names(allData))
+names(allData)<-gsub("^f", "frequency", names(allData))
+names(allData)<-gsub("Acc", "Accelerometer", names(allData))
+names(allData)<-gsub("Gyro", "Gyroscope", names(allData))
+names(allData)<-gsub("Mag", "Magnitude", names(allData))
+names(allData)<-gsub("BodyBody", "Body", names(allData))
+write.table(allData, "merged.txt")
 
-## Extract mean and standard deviation for each measurement in data set
-desiredcols<- grep(".*Mean.*|.*Std.*", features[,2])
-## replace features with mean and standard deviation, then add subject/activity information
-features<- features[desiredcols,]
-desiredcols<- c(desiredcols, 562, 563)
-
-##To make the file easier to work with, remove non-relevant columns from the merged set, then
-## give the new names from the features file that was created earlier. Next, make the names
-## lowercase.
-merged<- merged[,desiredcols]
-colnames(merged)<-c(features$V2, "Activity", "Subject")
-colnames(merged)<-tolower(colnames(merged))
-
-## Create independent tidy data set with average of each variable for each activity and subject
-
-index = 1
-for (currentlabel in labels$V2){
-        merged$activity<- gsub(index,currentlabel,merged$activity)
-        index<- index + 1
-}
-
-## Create activity and subject as factor levels in preparation for determining means
-
-activityasfactor<- as.factor(merged$activity)
-subjectasfactor <- as.factor(merged$subject)
-
-## Determine means of each variable by activity and for each subject
-cleaned = aggregate(merged, by=list(activity = activityasfactor, subject = subjectasfactor),mean)
-
-## Remove subject and activity
-cleaned[,90]=NULL
-cleaned[,89]=NULL
-write.table(cleaned,"tidy.txt", sep = '\t')
+#5 Create a second, independent tidy data set with the average of each variable for each activity
+#  and each subject
+library(plyr); library(dplyr)
+tidy<- ddply(allData, .(subject, activity), function(x) colMeans(x[, 3:68]))
+write.table(tidy, "tidy.txt", row.name=FALSE)
