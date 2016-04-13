@@ -1,0 +1,16 @@
+require(rCharts)
+require(knitr)
+names(iris) <- gsub("\\.", "", names(iris))
+r1 <- rPlot(SepalLength ~ SepalWidth | Species, data = iris, color = 'Species', type = 'point')
+r1$show('inline')
+
+require(rCharts)
+haireye <- as.data.frame(HairEyeColor)
+n1 <- nPlot(Freq~Hair, group = 'Eye', type = 'multiBarChart',
+            data = subset(haireye, Sex == 'Male')
+)
+library(leaflet)
+map3 <- Leaflet$new()
+map3$setView(c(51.505, -.09), zoom = 13)
+map3$marker(c(51.5, -.09), bindPopup =" <p> Hi. I am a popup </p>")
+map3$marker(c(51.495, -.083), bindPopup =" <p> Hi. I am another popup </p>")
