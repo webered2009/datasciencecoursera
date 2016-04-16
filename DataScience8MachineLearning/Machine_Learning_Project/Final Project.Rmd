@@ -1,0 +1,101 @@
+---
+title: "Final Project Report - Practical Machine Learning"
+author: "Eric Weber"
+date: "April 15, 2016"
+output: html_document
+---
+
+## Background and Purpose
+
+The purpose of this project is to predict the manner in which humans completed an exercise, based on other predictors using machine learning techniques. The purpose of this report is to examine the strength of various models for the data (from accelerometers on the belt, forearm, arm and dumbbell of the 6 participants). 
+
+## Download and Read In Data
+
+The first step consisted of downloading the data from the web source. The data table package is used for reading in the data given its speed and efficiency with large datasets. The conversion to data frames was necessary to carry out the machine learning algorithms discussed later in the report. Note that the download commands are suppressed here.
+
+```{r}
+local_path <- "/Users/ericweber/Dropbox/datasciencecourseraPersonal/DataScience8MachineLearning/Machine_Learning_Project"
+setwd(local_path)
+library(caret, quietly = TRUE)
+library(data.table, quietly = TRUE)
+
+#url_train <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv'
+#url_test <- 'https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv'
+#download.file(url = url_train, destfile = 'data_train.csv')
+#download.file(url = url_test, destfile = 'data_test.csv')
+
+train <- fread('data_train.csv', 
+                   na.strings = c('NA','#DIV/0!',''))
+train <- as.data.frame(train)
+test <- fread('data_test.csv', 
+                  na.strings = c('NA','#DIV/0!',''))
+test <- as.data.frame(test)
+
+```
+
+## Data Cleaning
+
+Once the data were stored as "training" and "test", respectively, a good deal of data cleaning was necessary. While I initially considered a threshold for missing values of about 50 percent to result in exlcusion of the variable from the dataset, I determined it would be most computationally efficient to include only complete variables (for which no data was missing). Following this step, I removed data that was not numeric in order to prepare the data for the machine learning algorithms to come. I also completed these same steps on the test data set.
+
+```{r}
+train_complete <- train[, colSums(is.na(train)) == 0] 
+test_complete <- test[, colSums(is.na(test)) == 0]
+
+## Remove other columns that won't help the analysis (non-numeric or int types)
+
+classe <- factor(train_complete$classe)
+train_to_delete <- grepl("window|timestamp|^X", names(train_complete))
+train_complete <- train_complete[,!train_to_delete]
+train_for_analysis <- train_complete[,sapply(train_complete, is.numeric)]
+train_for_analysis$classe <- classe
+
+test_to_delete <- grepl("window|timestamp|^X", names(test_complete))
+test_complete <- test_complete[,!test_to_delete]
+test_for_analysis <- test_complete[,sapply(test_complete, is.numeric)]
+```
+
+## Split Training Data
+
+Once the data cleaning was completed, I split the training dataset into two sets: a training set and a test set, prior to deploying the models on the 20 observations in the given test set. I used a 60/40 split for the training and test set, respectively.
+
+```{r}
+set.seed(4444) 
+inTrain <- createDataPartition(train_for_analysis$classe, p = 0.60, list = FALSE)
+trainData <- train_for_analysis[inTrain, ]
+testData <- train_for_analysis[-inTrain, ]
+```
+
+## Create Models
+
+With the data split, I focused on examining three different models for the data (shown below), as well as a cross validation measure for each model. While I have suppressed the output of the full models here, the accuracy of the models on the training data only suggested that the random forest and boosting models would be most effective.
+
+```{r, cache = TRUE, results = "hide"}
+library(caret, quietly = TRUE)
+library(pgmm, quietly = TRUE)
+library(gbm, quietly = TRUE)
+library(randomForest, quietly = TRUE)
+library(rattle, quietly = TRUE)
+
+cross_val <- trainControl(method="cv", 5)
+gbm <- train(classe ~ ., method = "gbm", trControl = cross_val, data = trainData)
+lda <- train(classe ~ ., method = "lda", trControl = cross_val, data = trainData)
+rf <- randomForest(classe ~ .,data= trainData, trControl = cross_val, ntree=500, importance=TRUE)
+
+gbm_pred <- predict(gbm, newdata = testData)
+lda_pred <- predict(lda, newdata = testData)
+rf_pred <- predict(rf, newdata = testData)
+```
+
+## Evaluating Accuracy of Models
+
+The last step in evaluating the models was to evaluate the predictions against the test set (created from the original training set). It is quite clear, based on the output, that the random forest model is best, with an accuracy of over 99 percent. Indeed, when deployed on the test data set, it classified each of the 20 observations correctly. 
+
+```{r, cache = TRUE}
+confusionMatrix(gbm_pred, testData$classe)
+confusionMatrix(lda_pred, testData$classe)
+confusionMatrix(rf_pred, testData$classe)
+```
+
+## Summary
+
+The purpose of this report was to examine the fit of various models for predicting mode of exercise based on a large number of predictor variables. This dataset required a fair amount of cleaning and removal of certain variables. While both the boosting model and the random forest model had accuracy of over 95 percent, the random forest model was clearly superior with an accuracy of over 99 percent on the test set, and 100 percent on the other test set of 20 observations.
